@@ -91,6 +91,9 @@ jobs:
             exit 1
           fi
 
+      - name: One-click demo script
+        run: bash scripts/demo.sh
+
       - name: Formatting is clean
         run: |
           moon fmt

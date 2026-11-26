@@ -14,6 +14,8 @@
 - CLI 新增 `--strict`：警告也返回退出码 1，便于在 CI 中把「未使用文献」也当作门禁。
 - 新增 `to_github(report)` 与 `slash_path(path)` 两个公开函数。
 - 新增 `examples/book/` 演示：两章 Markdown + 含 `@string` 的文献库，覆盖跨文件引用合并、笔误建议与真正未使用的条目。
+- 新增 `scripts/demo.ps1` / `scripts/demo.sh` 一键演示脚本：串跑六组场景并断言退出码。
+- 新增 `docs/architecture.md`（分层、解析器状态机、规则复杂度、FFI 边界、测试策略）与 `docs/submission.md`（赛事验收对照与复现清单）。
 
 ### 变更
 
