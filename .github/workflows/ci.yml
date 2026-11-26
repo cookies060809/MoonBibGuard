@@ -53,6 +53,44 @@ jobs:
           node _build/js/debug/build/cmd/main/main.js examples/paper.md examples/references.bib --json -o report.json || true
           node -e "JSON.parse(require('fs').readFileSync('report.json','utf8')); console.log('json ok')"
 
+      - name: JSON report matches committed baseline
+        run: |
+          node _build/js/debug/build/cmd/main/main.js examples/paper.md examples/references.bib --json -o actual.json || true
+          node -e "const fs=require('fs');const a=JSON.stringify(JSON.parse(fs.readFileSync('actual.json','utf8')));const b=JSON.stringify(JSON.parse(fs.readFileSync('examples/expected.json','utf8')));if(a!==b){console.error('baseline mismatch');process.exit(1)}console.log('baseline ok')"
+
+      - name: Demo on multi-file book (expect exit code 1)
+        run: |
+          set +e
+          node _build/js/debug/build/cmd/main/main.js examples/book/ch1-intro.md examples/book/ch2-method.md --bib examples/book/references.bib
+          code=$?
+          set -e
+          if [ "$code" -ne 1 ]; then
+            echo "expected exit code 1, got $code"
+            exit 1
+          fi
+
+      - name: GitHub annotation format
+        run: |
+          node _build/js/debug/build/cmd/main/main.js examples/book/ch1-intro.md examples/book/ch2-method.md --bib examples/book/references.bib --format github > annotations.txt || true
+          grep -q "::error file=examples/book/ch2-method.md,line=5" annotations.txt
+          grep -q "::notice::MoonBibGuard" annotations.txt
+
+      - name: Strict mode turns warnings into failure
+        run: |
+          mkdir -p /tmp/strict
+          printf '只引用一条 [@a]\n' > /tmp/strict/s.md
+          printf '@misc{a, title = {A}}\n@misc{unused, title = {U}}\n' > /tmp/strict/s.bib
+          node _build/js/debug/build/cmd/main/main.js /tmp/strict/s.md /tmp/strict/s.bib
+          echo "non-strict exit=$?"
+          set +e
+          node _build/js/debug/build/cmd/main/main.js /tmp/strict/s.md /tmp/strict/s.bib --strict
+          code=$?
+          set -e
+          if [ "$code" -ne 1 ]; then
+            echo "expected strict exit code 1, got $code"
+            exit 1
+          fi
+
       - name: Formatting is clean
         run: |
           moon fmt

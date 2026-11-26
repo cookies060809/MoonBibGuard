@@ -138,3 +138,53 @@ test "clean run keeps warning count at zero" {
   assert_eq(report.warning_count, 0)
   assert_eq(report.error_count, 0)
 }
+
+///|
+test "citation split across two documents is matched by the library" {
+  let docs : Array[(String, String)] = [
+    ("intro.md", "参见 [@vaswani2017]。"),
+    ("method.md", "我们沿用 [@vaswani2017]。"),
+  ]
+  let bib = "@inproceedings{vaswani2017, author = {Vaswani}, title = {Attention}, year = {2017}, booktitle = {NeurIPS}}"
+  let report = @moonbibguard.analyze_docs(docs, bib)
+  assert_eq(report.error_count, 0)
+  assert_eq(report.warning_count, 0)
+  assert_eq(report.citation_count, 2)
+}
+
+///|
+test "multi-document report points at the offending file" {
+  let docs : Array[(String, String)] = [
+    ("intro.md", "这里没问题 [@a]"),
+    ("appendix.md", "这里引错了 [@ghost]"),
+  ]
+  let bib = "@misc{a, title = {A}}"
+  let report = @moonbibguard.analyze_docs(docs, bib)
+  let mut file_of_ghost = ""
+  for d in report.diagnostics {
+    if d.code == "MBG001" {
+      file_of_ghost = d.file
+    }
+  }
+  assert_eq(file_of_ghost, "appendix.md")
+}
+
+///|
+test "entry cited in any document is not reported as unused" {
+  let docs : Array[(String, String)] = [
+    ("ch1.md", "引言"),
+    ("ch2.md", "结论 [@b]"),
+  ]
+  let bib = "@misc{b, title = {B}}\n@misc{c, title = {C}}"
+  let report = @moonbibguard.analyze_docs(docs, bib)
+  assert_eq(count_code(report, "MBG003"), 1)
+}
+
+///|
+test "empty document list yields an empty but valid report" {
+  let docs : Array[(String, String)] = []
+  let report = @moonbibguard.analyze_docs(docs, "@misc{x, title = {X}}")
+  assert_eq(report.citation_count, 0)
+  assert_eq(report.entry_count, 1)
+  assert_eq(report.error_count, 0)
+}

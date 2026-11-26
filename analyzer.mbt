@@ -58,16 +58,29 @@ pub fn required_fields(entry_type : String) -> Array[String] {
 }
 
 ///|
-/// Analyzes one Markdown document against one BibTeX library and returns
-/// a report with error codes, positions and fix suggestions.
-pub fn analyze(
-  markdown_text : String,
+fn best_length_ok(best : String, key : String) -> Bool {
+  match levenshtein(best, key) {
+    1 | 2 => best.length() >= 4
+    _ => false
+  }
+}
+
+///|
+/// Analyzes one or more Markdown documents against one BibTeX library.
+/// `docs` holds `(file_name, markdown_text)` pairs.
+pub fn analyze_docs(
+  docs : Array[(String, String)],
   bibtex_text : String,
-  markdown_file~ : String = "paper.md",
   bib_file~ : String = "references.bib",
 ) -> Report {
   let db = parse_bibtex(bibtex_text)
-  let cites = extract_citations(markdown_text)
+  let tagged : Array[(String, Citation)] = []
+  for doc in docs {
+    let (name, text) = doc
+    for cite in extract_citations(text) {
+      tagged.push((name, cite))
+    }
+  }
   let diags : Array[Diagnostic] = []
   let index : Map[String, Array[BibEntry]] = Map([])
   for entry in db.entries {
@@ -126,7 +139,8 @@ pub fn analyze(
     }
   }
   // MBG001: undefined citations
-  for cite in cites {
+  for item in tagged {
+    let (file, cite) = item
     match index.get(cite.key) {
       Some(_) => ()
       None => {
@@ -147,7 +161,7 @@ pub fn analyze(
         diags.push({
           code: "MBG001",
           severity: Error,
-          file: markdown_file,
+          file,
           line: cite.line,
           column: cite.column,
           message: "未定义引用 \{cite.key}：文献库中不存在该引用键",
@@ -158,7 +172,8 @@ pub fn analyze(
   }
   // MBG003: unused entries
   let cited : Map[String, Bool] = Map([])
-  for cite in cites {
+  for item in tagged {
+    let (_, cite) = item
     cited.set(cite.key, true)
   }
   for entry in db.entries {
@@ -191,15 +206,19 @@ pub fn analyze(
     error_count,
     warning_count,
     info_count,
-    citation_count: cites.length(),
+    citation_count: tagged.length(),
     entry_count: db.entries.length(),
   }
 }
 
 ///|
-fn best_length_ok(best : String, key : String) -> Bool {
-  match levenshtein(best, key) {
-    1 | 2 => best.length() >= 4
-    _ => false
-  }
+/// Analyzes one Markdown document against one BibTeX library and returns
+/// a report with error codes, positions and fix suggestions.
+pub fn analyze(
+  markdown_text : String,
+  bibtex_text : String,
+  markdown_file~ : String = "paper.md",
+  bib_file~ : String = "references.bib",
+) -> Report {
+  analyze_docs([(markdown_file, markdown_text)], bibtex_text, bib_file~)
 }

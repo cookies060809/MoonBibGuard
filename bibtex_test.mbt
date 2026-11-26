@@ -141,3 +141,68 @@ test "whitespace runs collapse inside values" {
   )
   assert_eq(db.entries[0].title, "Deep Learning Works")
 }
+
+///|
+test "@string macro is expanded in field values" {
+  let db = @moonbibguard.parse_bibtex(
+    "@string{acm = {ACM Press}}\n@book{b1, publisher = acm, title = {T}}",
+  )
+  assert_eq(db.errors.length(), 0)
+  assert_eq(db.entries[0].fields.get("publisher").unwrap(), "ACM Press")
+}
+
+///|
+test "hash concatenation joins literal and macro parts" {
+  let db = @moonbibguard.parse_bibtex(
+    "@string{conf = {Proc. of ICML}}\n@inproceedings{p1, booktitle = conf # { 2023}, title = {T}}",
+  )
+  assert_eq(db.errors.length(), 0)
+  assert_eq(
+    db.entries[0].fields.get("booktitle").unwrap(),
+    "Proc. of ICML 2023",
+  )
+}
+
+///|
+test "quoted value supports hash concatenation" {
+  let db = @moonbibguard.parse_bibtex(
+    "@string{org = {OpenAI}}\n@misc{m1, author = org # { Team}, title = {T}}",
+  )
+  assert_eq(db.entries[0].fields.get("author").unwrap(), "OpenAI Team")
+}
+
+///|
+test "string macro names are case insensitive" {
+  let db = @moonbibguard.parse_bibtex(
+    "@string{IEEE = {IEEE Press}}\n@book{b1, publisher = ieee, title = {T}}",
+  )
+  assert_eq(db.entries[0].fields.get("publisher").unwrap(), "IEEE Press")
+}
+
+///|
+test "unknown bare word is kept verbatim instead of dropped" {
+  let db = @moonbibguard.parse_bibtex("@misc{m1, title = {T}, month = jan}")
+  assert_eq(db.entries[0].fields.get("month").unwrap(), "jan")
+}
+
+///|
+test "@string definitions are exposed through the macros map" {
+  let db = @moonbibguard.parse_bibtex("@string{my = {Val}}")
+  assert_eq(db.macros.get("my").unwrap(), "Val")
+  assert_eq(db.macros.length(), 1)
+}
+
+///|
+test "missing closing brace in @string reports an error" {
+  let db = @moonbibguard.parse_bibtex("@string{broken = {Val}")
+  assert_eq(db.errors.length(), 1)
+}
+
+///|
+test "entry with few fields still parses after @string block" {
+  let db = @moonbibguard.parse_bibtex(
+    "@string{acm = {ACM}}\n@book{b1, title = {T}}",
+  )
+  assert_eq(db.entries.length(), 1)
+  assert_eq(db.errors.length(), 0)
+}

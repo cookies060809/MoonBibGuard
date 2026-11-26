@@ -22,6 +22,7 @@ pub(all) struct BibParseError {
 pub(all) struct BibDatabase {
   entries : Array[BibEntry]
   errors : Array[BibParseError]
+  macros : Map[String, String]
 }
 
 ///|
@@ -110,127 +111,193 @@ fn skip_space(
 }
 
 ///|
-/// Parses one field value starting at `pos`. Handles brace-delimited values,
-/// quoted values and bare tokens, collapsing runs of whitespace into one space.
-/// Returns `(value, new_pos, new_line, ok)`.
-fn parse_value(
+/// Parses a `{...}` literal, handling nested braces and collapsing runs of
+/// whitespace into one space. Edge spaces are kept so that `#` concatenation
+/// behaves like BibTeX; the final value is trimmed by `parse_value`.
+fn parse_braced(
   cs : Array[Char],
   n : Int32,
   pos : Int32,
   line : Int32,
 ) -> (String, Int32, Int32, Bool) {
   let sb = StringBuilder()
-  let mut i = pos
+  let mut i = pos + 1
   let mut l = line
-  let mut ok = true
+  let mut depth = 1
   let mut pending_space = false
-  let mut has_content = false
-  if i >= n {
-    return ("", i, l, false)
-  }
-  if cs[i] == '{' {
-    i = i + 1
-    let mut depth = 1
-    while i < n && depth > 0 {
-      let c = cs[i]
-      if c == '{' {
-        if pending_space && has_content {
-          sb.write_char(' ')
-        }
-        pending_space = false
-        has_content = true
-        depth = depth + 1
-        sb.write_char(c)
-        i = i + 1
-      } else if c == '}' {
-        depth = depth - 1
-        if depth > 0 {
-          if pending_space && has_content {
-            sb.write_char(' ')
-          }
-          pending_space = false
-          sb.write_char(c)
-        }
-        i = i + 1
-      } else if char_is_space(c) {
-        if c == '\n' {
-          l = l + 1
-        }
-        if has_content {
-          pending_space = true
-        }
-        i = i + 1
-      } else {
-        if pending_space && has_content {
-          sb.write_char(' ')
-        }
-        pending_space = false
-        has_content = true
-        sb.write_char(c)
-        i = i + 1
+  while i < n && depth > 0 {
+    let c = cs[i]
+    if c == '{' {
+      if pending_space {
+        sb.write_char(' ')
       }
-    }
-    if depth > 0 {
-      ok = false
-    }
-  } else if cs[i] == '"' {
-    i = i + 1
-    let mut depth = 0
-    let mut closed = false
-    while i < n && !closed {
-      let c = cs[i]
-      if c == '{' {
-        if pending_space && has_content {
-          sb.write_char(' ')
-        }
-        pending_space = false
-        has_content = true
-        depth = depth + 1
-        sb.write_char(c)
-        i = i + 1
-      } else if c == '}' && depth > 0 {
-        depth = depth - 1
-        if pending_space && has_content {
+      pending_space = false
+      depth = depth + 1
+      sb.write_char(c)
+      i = i + 1
+    } else if c == '}' {
+      depth = depth - 1
+      if depth > 0 {
+        if pending_space {
           sb.write_char(' ')
         }
         pending_space = false
         sb.write_char(c)
-        i = i + 1
-      } else if c == '"' && depth == 0 {
-        closed = true
-        i = i + 1
-      } else if char_is_space(c) {
-        if c == '\n' {
-          l = l + 1
-        }
-        if has_content {
-          pending_space = true
-        }
-        i = i + 1
-      } else {
-        if pending_space && has_content {
-          sb.write_char(' ')
-        }
-        pending_space = false
-        has_content = true
-        sb.write_char(c)
-        i = i + 1
       }
-    }
-    if !closed {
-      ok = false
-    }
-  } else {
-    while i < n {
-      let c = cs[i]
-      if c == ',' || c == '}' || c == ')' || char_is_space(c) {
-        break
+      i = i + 1
+    } else if char_is_space(c) {
+      if c == '\n' {
+        l = l + 1
       }
+      pending_space = true
+      i = i + 1
+    } else {
+      if pending_space {
+        sb.write_char(' ')
+      }
+      pending_space = false
       sb.write_char(c)
       i = i + 1
     }
   }
-  (trim_ascii(sb.to_string()), i, l, ok)
+  (sb.to_string(), i, l, depth == 0)
+}
+
+///|
+/// Parses a `"..."` literal; braces inside keep the quoted part balanced.
+/// Like `parse_braced`, edge spaces survive so `#` concatenation is faithful.
+fn parse_quoted(
+  cs : Array[Char],
+  n : Int32,
+  pos : Int32,
+  line : Int32,
+) -> (String, Int32, Int32, Bool) {
+  let sb = StringBuilder()
+  let mut i = pos + 1
+  let mut l = line
+  let mut depth = 0
+  let mut closed = false
+  let mut pending_space = false
+  while i < n && !closed {
+    let c = cs[i]
+    if c == '{' {
+      if pending_space {
+        sb.write_char(' ')
+      }
+      pending_space = false
+      depth = depth + 1
+      sb.write_char(c)
+      i = i + 1
+    } else if c == '}' && depth > 0 {
+      depth = depth - 1
+      if pending_space {
+        sb.write_char(' ')
+      }
+      pending_space = false
+      sb.write_char(c)
+      i = i + 1
+    } else if c == '"' && depth == 0 {
+      closed = true
+      i = i + 1
+    } else if char_is_space(c) {
+      if c == '\n' {
+        l = l + 1
+      }
+      pending_space = true
+      i = i + 1
+    } else {
+      if pending_space {
+        sb.write_char(' ')
+      }
+      pending_space = false
+      sb.write_char(c)
+      i = i + 1
+    }
+  }
+  (sb.to_string(), i, l, closed)
+}
+
+///|
+/// Reads a bare token (macro name or number) up to a delimiter.
+fn parse_bare(cs : Array[Char], n : Int32, pos : Int32) -> (String, Int32) {
+  let mut i = pos
+  while i < n {
+    let c = cs[i]
+    if c == ',' || c == '}' || c == ')' || c == '#' || char_is_space(c) {
+      break
+    }
+    i = i + 1
+  }
+  (slice_to_string(cs, pos, i), i)
+}
+
+///|
+/// Parses a BibTeX value expression: `{literal}`, `"literal"`, a macro name,
+/// or several of them joined with `#`.
+fn parse_value(
+  cs : Array[Char],
+  n : Int32,
+  pos : Int32,
+  line : Int32,
+  macros : Map[String, String],
+) -> (String, Int32, Int32, Bool) {
+  let sb = StringBuilder()
+  let mut i = pos
+  let mut l = line
+  let mut ok = true
+  let mut any = false
+  while true {
+    let (p, nl) = skip_space(cs, n, i, l)
+    i = p
+    l = nl
+    if i >= n {
+      ok = any
+      break
+    }
+    let c = cs[i]
+    if c == '{' {
+      let (text, p2, l2, good) = parse_braced(cs, n, i, l)
+      sb.write_string(text)
+      i = p2
+      l = l2
+      any = true
+      if !good {
+        ok = false
+        break
+      }
+    } else if c == '"' {
+      let (text, p2, l2, good) = parse_quoted(cs, n, i, l)
+      sb.write_string(text)
+      i = p2
+      l = l2
+      any = true
+      if !good {
+        ok = false
+        break
+      }
+    } else {
+      let (token, p2) = parse_bare(cs, n, i)
+      if token == "" {
+        ok = any
+        break
+      }
+      match macros.get(lowercase(token)) {
+        Some(v) => sb.write_string(v)
+        None => sb.write_string(token)
+      }
+      i = p2
+      any = true
+    }
+    let (p3, nl3) = skip_space(cs, n, i, l)
+    i = p3
+    l = nl3
+    if i < n && cs[i] == '#' {
+      i = i + 1
+    } else {
+      break
+    }
+  }
+  (trim_ascii(sb.to_string()), i, l, ok && any)
 }
 
 ///|
@@ -255,6 +322,7 @@ fn parse_entry_body(
   entry_type : String,
   key : String,
   is_paren : Bool,
+  macros : Map[String, String],
   entries : Array[BibEntry],
   errors : Array[BibParseError],
 ) -> (Int32, Int32) {
@@ -307,7 +375,7 @@ fn parse_entry_body(
     let (p3, nl3) = skip_space(cs, n, i, l)
     i = p3
     l = nl3
-    let (value, p4, nl4, ok) = parse_value(cs, n, i, l)
+    let (value, p4, nl4, ok) = parse_value(cs, n, i, l, macros)
     i = p4
     l = nl4
     if !ok {
@@ -316,8 +384,9 @@ fn parse_entry_body(
         message: "字段 \{name} 的值没有正确闭合",
       })
     }
-    if !fields.contains(name) {
-      fields.set(name, value)
+    match fields.get(name) {
+      Some(_) => ()
+      None => fields.set(name, value)
     }
   }
   if broken && i >= n {
@@ -348,12 +417,85 @@ fn parse_entry_body(
 }
 
 ///|
-/// Parses a BibTeX library into entries plus syntax errors.
+/// Parses `@string{name = "value", ...}` definitions into the macro table.
+fn parse_string_def(
+  cs : Array[Char],
+  n : Int32,
+  pos : Int32,
+  start_line : Int32,
+  macros : Map[String, String],
+  errors : Array[BibParseError],
+) -> (Int32, Int32) {
+  let mut i = pos
+  let mut l = start_line
+  let open = cs[i]
+  let close = if open == '(' { ')' } else { '}' }
+  i = i + 1
+  let mut closed = false
+  while i < n {
+    let (p, nl) = skip_space(cs, n, i, l)
+    i = p
+    l = nl
+    if i >= n {
+      break
+    }
+    if cs[i] == close {
+      i = i + 1
+      closed = true
+      break
+    }
+    if cs[i] == ',' {
+      i = i + 1
+      continue
+    }
+    let name_start = i
+    while i < n &&
+          (
+            char_is_alpha(cs[i]) ||
+            char_is_digit(cs[i]) ||
+            cs[i] == '_' ||
+            cs[i] == '-'
+          ) {
+      i = i + 1
+    }
+    let name = lowercase(slice_to_string(cs, name_start, i))
+    let (p2, nl2) = skip_space(cs, n, i, l)
+    i = p2
+    l = nl2
+    if name == "" || i >= n || cs[i] != '=' {
+      errors.push({ line: l, message: "@string 定义缺少 = 号", })
+      i = recover_to_next_entry(cs, n, i)
+      break
+    }
+    i = i + 1
+    let (p3, nl3) = skip_space(cs, n, i, l)
+    i = p3
+    l = nl3
+    let (value, p4, nl4, ok) = parse_value(cs, n, i, l, macros)
+    i = p4
+    l = nl4
+    if !ok {
+      errors.push({
+        line: l,
+        message: "@string 宏 \{name} 的值没有正确闭合",
+      })
+    }
+    macros.set(name, value)
+  }
+  if !closed {
+    errors.push({ line: start_line, message: "@string 没有闭合", })
+  }
+  (i, l)
+}
+
+///|
+/// Parses a BibTeX library into entries, macro definitions and syntax errors.
 pub fn parse_bibtex(text : String) -> BibDatabase {
   let cs = text.to_array()
   let n = cs.length()
   let entries : Array[BibEntry] = []
   let errors : Array[BibParseError] = []
+  let macros : Map[String, String] = Map([])
   let mut i = 0
   let mut line = 1
   while i < n {
@@ -394,10 +536,7 @@ pub fn parse_bibtex(text : String) -> BibDatabase {
       i = recover_to_next_entry(cs, n, i)
       continue
     }
-    if entry_type == "comment" ||
-      entry_type == "string" ||
-      entry_type == "preamble" {
-      // 跳过非文献条目：按花括号平衡整体略过
+    if entry_type == "comment" || entry_type == "preamble" {
       if i < n && (cs[i] == '{' || cs[i] == '(') {
         let open = cs[i]
         let close = if open == '(' { ')' } else { '}' }
@@ -421,6 +560,20 @@ pub fn parse_bibtex(text : String) -> BibDatabase {
       }
       continue
     }
+    if entry_type == "string" {
+      if i < n && (cs[i] == '{' || cs[i] == '(') {
+        let (p2, l2) = parse_string_def(cs, n, i, line, macros, errors)
+        i = p2
+        line = l2
+      } else {
+        errors.push({
+          line: entry_line,
+          message: "@string 后面缺少 { 或 (",
+        })
+        i = recover_to_next_entry(cs, n, i)
+      }
+      continue
+    }
     if i >= n || (cs[i] != '{' && cs[i] != '(') {
       errors.push({
         line: entry_line,
@@ -436,11 +589,10 @@ pub fn parse_bibtex(text : String) -> BibDatabase {
     i = p2
     line = l2
     let key_start = i
-    let mut key = ""
     while i < n && cs[i] != ',' && cs[i] != close && cs[i] != '\n' {
       i = i + 1
     }
-    key = trim_ascii(slice_to_string(cs, key_start, i))
+    let key = trim_ascii(slice_to_string(cs, key_start, i))
     if key.length() == 0 {
       errors.push({
         line: entry_line,
@@ -459,10 +611,10 @@ pub fn parse_bibtex(text : String) -> BibDatabase {
     }
     i = i + 1
     let (p3, l3) = parse_entry_body(
-      cs, n, i, entry_line, entry_type, key, is_paren, entries, errors,
+      cs, n, i, entry_line, entry_type, key, is_paren, macros, entries, errors,
     )
     i = p3
     line = l3
   }
-  { entries, errors, }
+  { entries, errors, macros, }
 }

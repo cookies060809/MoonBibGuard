@@ -121,3 +121,31 @@ test "json report keeps suggestion when present" {
   let json = @moonbibguard.to_json(sample_report())
   assert_true(json.contains("suggestion"))
 }
+
+///|
+test "github output uses workflow command syntax" {
+  let report = @moonbibguard.analyze(
+    "正文 [@ghost]",
+    "@misc{ok, title = {OK}}",
+    markdown_file="chapter.md",
+    bib_file="refs.bib",
+  )
+  let text = @moonbibguard.to_github(report)
+  assert_true(text.contains("::error file=chapter.md,line=1"))
+  assert_true(text.contains("MBG001"))
+  assert_true(text.contains("::warning file=refs.bib"))
+}
+
+///|
+test "github output ends with a summary notice" {
+  let report = @moonbibguard.analyze("[@ok]", "@misc{ok, title = {OK}}")
+  let text = @moonbibguard.to_github(report)
+  assert_true(text.contains("::notice::MoonBibGuard 完成：0 个错误"))
+}
+
+///|
+test "windows paths become forward slashes in annotations" {
+  assert_eq(@moonbibguard.slash_path("docs\\ch1.md"), "docs/ch1.md")
+  assert_eq(@moonbibguard.slash_path(".\\README.md"), "README.md")
+  assert_eq(@moonbibguard.slash_path("ch2.md"), "ch2.md")
+}

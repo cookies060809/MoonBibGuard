@@ -151,3 +151,54 @@ pub fn to_json(report : Report) -> String {
   sb.write_string("}\n")
   sb.to_string()
 }
+
+///|
+/// Rewrites Windows-style separators to `/` and drops a leading `./`, so paths
+/// match what GitHub Actions expects in annotations.
+pub fn slash_path(path : String) -> String {
+  let sb = StringBuilder()
+  let chars = path.to_array()
+  let mut start = 0
+  if chars.length() >= 2 &&
+    chars[0] == '.' &&
+    (chars[1] == '/' || chars[1] == '\\') {
+    start = 2
+  }
+  for i = start; i < chars.length(); i = i + 1 {
+    let c = chars[i]
+    if c == '\\' {
+      sb.write_char('/')
+    } else {
+      sb.write_char(c)
+    }
+  }
+  sb.to_string()
+}
+
+///|
+/// Renders the report as GitHub Actions workflow commands, so findings show up
+/// as inline annotations in the "Files changed" view of a PR.
+pub fn to_github(report : Report) -> String {
+  let sb = StringBuilder()
+  for d in report.diagnostics {
+    let level = match d.severity {
+      Error => "error"
+      Warning => "warning"
+      Info => "notice"
+    }
+    sb.write_string("::\{level} file=\{slash_path(d.file)},line=\{d.line}")
+    if d.column > 0 {
+      sb.write_string(",col=\{d.column}")
+    }
+    sb.write_string("::\{d.code} \{d.message}")
+    match d.suggestion {
+      Some(s) => sb.write_string("（建议：\{s}）")
+      None => ()
+    }
+    sb.write_string("\n")
+  }
+  sb.write_string(
+    "::notice::MoonBibGuard 完成：\{report.error_count} 个错误 · \{report.warning_count} 个警告 · \{report.citation_count} 条引用\n",
+  )
+  sb.to_string()
+}
