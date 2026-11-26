@@ -1,0 +1,13 @@
+# MoonBit build output
+_build/
+target/
+
+# 本地技术方案（不入库）
+技术方案.md
+
+# 编辑器与系统文件
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

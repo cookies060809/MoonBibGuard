@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MoonBit
+        uses: hustcer/setup-moonbit@v1
+
+      - name: Toolchain versions
+        run: |
+          moon version
+          node --version
+
+      - name: Check (zero warnings)
+        run: moon check --target js --deny-warn
+
+      - name: Test
+        run: moon test --target js
+
+      - name: Build CLI
+        run: moon build --target js
+
+      - name: Demo on clean example (expect success)
+        run: |
+          node _build/js/debug/build/cmd/main/main.js examples/clean/paper.md examples/clean/references.bib
+
+      - name: Demo on boundary example (expect success)
+        run: |
+          node _build/js/debug/build/cmd/main/main.js examples/boundary/paper.md examples/boundary/references.bib
+
+      - name: Demo on broken example (expect exit code 1)
+        run: |
+          set +e
+          node _build/js/debug/build/cmd/main/main.js examples/broken/paper.md examples/broken/references.bib
+          code=$?
+          set -e
+          if [ "$code" -ne 1 ]; then
+            echo "expected exit code 1, got $code"
+            exit 1
+          fi
+
+      - name: JSON report is parseable
+        run: |
+          node _build/js/debug/build/cmd/main/main.js examples/paper.md examples/references.bib --json -o report.json || true
+          node -e "JSON.parse(require('fs').readFileSync('report.json','utf8')); console.log('json ok')"
+
+      - name: Formatting is clean
+        run: |
+          moon fmt
+          git diff --exit-code

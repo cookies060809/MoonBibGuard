@@ -1,0 +1,15 @@
+{
+  "tool": "moonbibguard",
+  "summary": {
+    "errors": 1,
+    "warnings": 1,
+    "infos": 0,
+    "diagnostics": 2,
+    "citations": 4,
+    "entries": 3
+  },
+  "diagnostics": [
+    {"code": "MBG001", "severity": "error", "file": "examples/paper.md", "line": 5, "column": 12, "message": "未定义引用 attention2025：文献库中不存在该引用键"},
+    {"code": "MBG003", "severity": "warning", "file": "examples/references.bib", "line": 15, "column": 0, "message": "未使用文献 unused2024：正文中没有引用它", "suggestion": "删除该条目，或在正文中补上引用"}
+  ]
+}
