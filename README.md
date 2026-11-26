@@ -49,6 +49,22 @@ MoonBibGuard 引用一致性检查
 
 `examples/paper.md` 里 `[@not_a_real_citation]` 和 `[@also_not_real]` 写在代码块与行内代码里，没有被误报 —— 这是本工具刻意处理的边界。
 
+## 作为依赖安装（Mooncakes）
+
+```bash
+moon add cookies060809/moonbibguard
+```
+
+在 `moon.pkg` 里声明导入：
+
+```
+import {
+  "cookies060809/moonbibguard",
+}
+```
+
+之后即可在代码里用 `@moonbibguard.analyze(...)`。
+
 ## 诊断规则
 
 | 代码 | 级别 | 含义 |

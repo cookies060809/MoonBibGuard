@@ -1,0 +1,79 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "cookies060809/moonbibguard"
+
+// Values
+pub fn analyze(String, String, markdown_file? : String, bib_file? : String) -> Report
+
+pub fn extract_citations(String) -> Array[Citation]
+
+pub fn format_report(Report, markdown_file? : String, bib_file? : String) -> String
+
+pub fn levenshtein(String, String) -> Int32
+
+pub fn parse_bibtex(String) -> BibDatabase
+
+pub fn required_fields(String) -> Array[String]
+
+pub fn to_json(Report) -> String
+
+pub fn version() -> String
+
+// Errors
+
+// Types and methods
+pub(all) struct BibDatabase {
+  entries : Array[BibEntry]
+  errors : Array[BibParseError]
+}
+
+pub(all) struct BibEntry {
+  key : String
+  entry_type : String
+  title : String
+  year : String
+  author : String
+  fields : Map[String, String]
+  line : Int32
+}
+
+pub(all) struct BibParseError {
+  line : Int32
+  message : String
+}
+
+pub(all) struct Citation {
+  key : String
+  line : Int32
+  column : Int32
+}
+
+pub(all) struct Diagnostic {
+  code : String
+  severity : Severity
+  file : String
+  line : Int32
+  column : Int32
+  message : String
+  suggestion : String?
+}
+
+pub(all) struct Report {
+  diagnostics : Array[Diagnostic]
+  error_count : Int32
+  warning_count : Int32
+  info_count : Int32
+  citation_count : Int32
+  entry_count : Int32
+}
+
+pub(all) enum Severity {
+  Error
+  Warning
+  Info
+}
+pub fn Severity::label(Self) -> String
+pub fn Severity::tag(Self) -> String
+
+// Type aliases
+
+// Traits

@@ -5,6 +5,7 @@ extern "js" fn js_argv() -> FixedArray[String] =
   #| () => process.argv.slice(2)
 
 ///|
+#borrow(path)
 extern "js" fn js_exists(path : String) -> Bool =
   #| (p) => {
   #|   try {
@@ -16,6 +17,7 @@ extern "js" fn js_exists(path : String) -> Bool =
   #| }
 
 ///|
+#borrow(path)
 extern "js" fn js_read(path : String) -> String =
   #| (p) => {
   #|   try {
@@ -27,6 +29,7 @@ extern "js" fn js_read(path : String) -> String =
   #| }
 
 ///|
+#borrow(path, text)
 extern "js" fn js_write(path : String, text : String) -> Bool =
   #| (p, t) => {
   #|   try {
@@ -43,6 +46,7 @@ extern "js" fn js_set_exit_code(code : Int32) -> Unit =
   #| (c) => { process.exitCode = c; }
 
 ///|
+#borrow(text)
 extern "js" fn js_print(text : String) -> Unit =
   #| (t) => { process.stdout.write(t); }
 

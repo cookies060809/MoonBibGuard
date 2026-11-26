@@ -11,3 +11,5 @@ license = "MIT"
 keywords = [ "bibtex", "markdown", "citation", "lint", "cli" ]
 
 description = "Offline Markdown + BibTeX citation consistency checker for MoonBit"
+
+preferred_target = "js"
