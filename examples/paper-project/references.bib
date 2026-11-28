@@ -1,0 +1,44 @@
+% A realistic library: @string macros, nested braces, quoted values,
+% bare month, DOI and URL fields, a @techreport.
+@string{acm = {ACM}}
+@string{ieee = {IEEE Press}}
+
+@inproceedings{vaswani2017,
+  author    = {Vaswani, Ashish and Shazeer, Noam and Parmar, Niki},
+  title     = {Attention Is All You Need},
+  booktitle = {Advances in Neural Information Processing Systems},
+  year      = {2017},
+  pages     = {5998--6008}
+}
+
+@article{kingma2015,
+  author  = {Kingma, Diederik P. and Ba, Jimmy},
+  title   = {Adam: A Method for Stochastic Optimization},
+  journal = {arXiv preprint arXiv:1412.6980},
+  year    = {2015}
+}
+
+@book{knuth1984,
+  author    = {Knuth, Donald E.},
+  title     = {{The \TeX{}book}},
+  publisher = acm,
+  year      = {1984}
+}
+
+@inproceedings{devlin2019,
+  author    = {Devlin, Jacob and Chang, Ming-Wei and Lee, Kenton and Toutanova, Kristina},
+  title     = {{BERT}: Pre-training of Deep Bidirectional Transformers},
+  booktitle = {NAACL-HLT},
+  year      = {2019},
+  month     = jun,
+  doi       = {10.18653/v1/N19-1423},
+  url       = {https://aclanthology.org/N19-1423}
+}
+
+@techreport{ieee754,
+  author      = {IEEE},
+  title       = {IEEE Standard for Floating-Point Arithmetic},
+  institution = ieee,
+  year        = {2019},
+  number      = {754}
+}

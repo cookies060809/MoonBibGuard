@@ -1,4 +1,4 @@
-﻿# 一键演示：跑完六组场景并断言退出码，退出码非 0 表示有场景不符预期。
+﻿# 一键演示：跑完八组场景并断言退出码，退出码非 0 表示有场景不符预期。
 # 用法：powershell -ExecutionPolicy Bypass -File scripts/demo.ps1
 
 $ErrorUtility = $null
@@ -31,12 +31,14 @@ if (-not $node) {
 }
 
 $cases = @(
-  @{ name = "paper      单文档：1 错 1 警"; args = @("examples/paper.md", "examples/references.bib"); want = 1 },
-  @{ name = "clean      全部正确"; args = @("examples/clean/paper.md", "--bib", "examples/clean/references.bib"); want = 0 },
-  @{ name = "clean+strict 严格模式仍通过"; args = @("examples/clean/paper.md", "--bib", "examples/clean/references.bib", "--strict"); want = 0 },
-  @{ name = "boundary   边界写法"; args = @("examples/boundary/paper.md", "--bib", "examples/boundary/references.bib"); want = 0 },
-  @{ name = "broken     五类规则齐发"; args = @("examples/broken/paper.md", "--bib", "examples/broken/references.bib"); want = 1 },
-  @{ name = "book       多文件 + @string"; args = @("examples/book/ch1-intro.md", "examples/book/ch2-method.md", "--bib", "examples/book/references.bib"); want = 1 }
+  @{ name = "paper          单文档：1 错 1 警"; args = @("examples/paper.md", "examples/references.bib"); want = 1 },
+  @{ name = "clean          全部正确"; args = @("examples/clean/paper.md", "--bib", "examples/clean/references.bib"); want = 0 },
+  @{ name = "clean+strict   严格模式仍通过"; args = @("examples/clean/paper.md", "--bib", "examples/clean/references.bib", "--strict"); want = 0 },
+  @{ name = "boundary       边界写法"; args = @("examples/boundary/paper.md", "--bib", "examples/boundary/references.bib"); want = 0 },
+  @{ name = "broken         五类规则齐发"; args = @("examples/broken/paper.md", "--bib", "examples/broken/references.bib"); want = 1 },
+  @{ name = "book           多文件 + @string"; args = @("examples/book/ch1-intro.md", "examples/book/ch2-method.md", "--bib", "examples/book/references.bib"); want = 1 },
+  @{ name = "paper-project  仿真实论文 + 配置文件"; args = @("examples/paper-project/intro.md", "examples/paper-project/method.md", "--config", "examples/paper-project/.moonbibguard.json"); want = 0 },
+  @{ name = "sarif          SARIF 报告（paper）"; args = @("examples/paper.md", "examples/references.bib", "--format", "sarif"); want = 1 }
 )
 
 Write-Host "2/2 运行场景 ..." -ForegroundColor Cyan

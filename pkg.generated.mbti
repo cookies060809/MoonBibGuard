@@ -6,6 +6,10 @@ pub fn analyze(String, String, markdown_file? : String, bib_file? : String) -> R
 
 pub fn analyze_docs(Array[(String, String)], String, bib_file? : String) -> Report
 
+pub fn apply_config(Report, Config) -> Report
+
+pub fn default_config() -> Config
+
 pub fn extract_citations(String) -> Array[Citation]
 
 pub fn format_report(Report, markdown_file? : String, bib_file? : String) -> String
@@ -14,6 +18,8 @@ pub fn levenshtein(String, String) -> Int32
 
 pub fn parse_bibtex(String) -> BibDatabase
 
+pub fn parse_config(String) -> (Config, String?)
+
 pub fn required_fields(String) -> Array[String]
 
 pub fn slash_path(String) -> String
@@ -21,6 +27,8 @@ pub fn slash_path(String) -> String
 pub fn to_github(Report) -> String
 
 pub fn to_json(Report) -> String
+
+pub fn to_sarif(Report, tool_version? : String) -> String
 
 pub fn version() -> String
 
@@ -52,6 +60,13 @@ pub(all) struct Citation {
   key : String
   line : Int32
   column : Int32
+}
+
+pub(all) struct Config {
+  rules : Map[String, String]
+  format : String
+  strict : Bool
+  bib : String
 }
 
 pub(all) struct Diagnostic {

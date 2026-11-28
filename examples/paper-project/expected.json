@@ -1,0 +1,12 @@
+{
+  "tool": "moonbibguard",
+  "summary": {
+    "errors": 0,
+    "warnings": 0,
+    "infos": 0,
+    "diagnostics": 0,
+    "citations": 6,
+    "entries": 5
+  },
+  "diagnostics": []
+}

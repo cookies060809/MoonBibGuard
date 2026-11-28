@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 一键演示：跑完六组场景并断言退出码，退出码非 0 表示有场景不符预期。
+# 一键演示：跑完八组场景并断言退出码，退出码非 0 表示有场景不符预期。
 # 用法：bash scripts/demo.sh
 
 set -u
@@ -44,6 +44,8 @@ run_case "clean+strict   严格模式仍通过" 0 examples/clean/paper.md --bib 
 run_case "boundary       边界写法" 0 examples/boundary/paper.md --bib examples/boundary/references.bib
 run_case "broken         五类规则齐发" 1 examples/broken/paper.md --bib examples/broken/references.bib
 run_case "book           多文件 + @string" 1 examples/book/ch1-intro.md examples/book/ch2-method.md --bib examples/book/references.bib
+run_case "paper-project  仿真实论文 + 配置文件" 0 examples/paper-project/intro.md examples/paper-project/method.md --config examples/paper-project/.moonbibguard.json
+run_case "sarif          SARIF 报告（paper）" 1 examples/paper.md examples/references.bib --format sarif
 
 echo
 echo "GitHub 注解格式预览："

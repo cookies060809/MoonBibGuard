@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/cookies060809/MoonBibGuard/main/schema/config.schema.json",
+  "title": "MoonBibGuard configuration",
+  "description": "Contents of `.moonbibguard.json`, read automatically from the working directory or via `--config`.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "rules": {
+      "type": "object",
+      "description": "Per-rule override. `off` drops the diagnostic; a level rewrites its severity.",
+      "propertyNames": {
+        "pattern": "^MBG\\d{3}$"
+      },
+      "additionalProperties": {
+        "enum": ["off", "error", "warning", "info"]
+      }
+    },
+    "format": {
+      "enum": ["text", "json", "github", "sarif"]
+    },
+    "strict": {
+      "type": "boolean"
+    },
+    "bib": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

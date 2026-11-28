@@ -2,6 +2,31 @@
 
 本项目的所有重要变更记录在这里，格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [0.2.0] - 2026-11-28
+
+面向开发者工作流的一版：让诊断不仅能打印，还能进入已有的代码扫描与项目配置体系。
+
+### 新增
+
+- **SARIF 2.1.0 输出**：`--format sarif` / `to_sarif(report, tool_version~)`。`ruleId` 用稳定代码（`MBG001` 等），`level` 映射为 `error` / `warning` / `note`，位置放进 `locations[0].physicalLocation`，路径统一为 `/` URI；有错误时 `invocations[0].executionSuccessful` 为 `false`。
+- **配置文件 `.moonbibguard.json`**：支持 `rules`（`off` / `error` / `warning` / `info`）、`format`、`strict`、`bib`。当前目录自动读取，也可用 `--config` 指定；优先级为「命令行 > 配置 > 默认」。
+- **配置的读写容错**：坏 JSON、顶层非对象、级别拼错都只打印提示并退回默认；Windows 编辑器写入的 UTF-8 BOM 自动剥离。
+- **JSON Schema**：`schema/report.schema.json` 与 `schema/config.schema.json`，并配 `scripts/check-schema.mjs` 用零依赖校验器验证真实输出（CI 里执行）。
+- **仿真实论文演示项目** `examples/paper-project/`：两章正文、5 条含 `@string` 宏 / 嵌套花括号 / DOI / `month = jun` 的文献，附 `.moonbibguard.json`，实测 0 错误 0 警告。
+- **性能基准** `scripts/bench.mjs` 与 `docs/performance.md`：本机实测 1 万条文献 + 1 万条引用端到端 167 ms。
+- **文档**：`docs/rules.md`（错误码语义、级别设计、配置与 SARIF 映射）、`docs/compatibility.md`（与 Pandoc 的语法对齐表、差异说明与自测方法）。
+- **引用抽取边界用例**：页码 `pp. 12-15`、章节 `ch. 3`、前缀 `[see @a, ...]`、紧凑分号 `[@a;@b]`、加粗 `[**@b**]`、嵌套方括号，均在测试中固化。
+
+### 变更
+
+- 测试 72 → 95（新增配置 10 项、SARIF 6 项、引用边界 7 项）。
+- 一键演示脚本从 6 组场景扩到 8 组（新增仿真实论文与 SARIF）。
+- 版本号升至 `0.2.0`。
+
+### 修复
+
+- PowerShell `Set-Content -Encoding UTF8` 写出的 BOM 会让配置解析失败，现已在 `parse_config` 前统一剥离。
+
 ## [0.1.1] - 2026-11-26
 
 ### 新增

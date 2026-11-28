@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/cookies060809/MoonBibGuard/main/schema/report.schema.json",
+  "title": "MoonBibGuard JSON report",
+  "description": "Output of `mbg --format json` (also written by `--json -o file`). Field order is stable; consumers may rely on the names below.",
+  "type": "object",
+  "required": ["tool", "summary", "diagnostics"],
+  "additionalProperties": false,
+  "properties": {
+    "tool": {
+      "const": "moonbibguard"
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "errors",
+        "warnings",
+        "infos",
+        "diagnostics",
+        "citations",
+        "entries"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "errors": { "type": "integer", "minimum": 0 },
+        "warnings": { "type": "integer", "minimum": 0 },
+        "infos": { "type": "integer", "minimum": 0 },
+        "diagnostics": { "type": "integer", "minimum": 0 },
+        "citations": { "type": "integer", "minimum": 0 },
+        "entries": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "severity", "file", "line", "column", "message"],
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^MBG\\d{3}$"
+          },
+          "severity": {
+            "enum": ["error", "warning", "info"]
+          },
+          "file": { "type": "string", "minLength": 1 },
+          "line": { "type": "integer", "minimum": 1 },
+          "column": { "type": "integer", "minimum": 0 },
+          "message": { "type": "string", "minLength": 1 },
+          "suggestion": { "type": "string" }
+        }
+      }
+    }
+  }
+}

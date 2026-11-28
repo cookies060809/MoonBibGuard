@@ -104,3 +104,57 @@ test "brackets without at-sign are ignored" {
   let cites = @moonbibguard.extract_citations("An array [0] and a list [a, b].")
   assert_eq(cites.length(), 0)
 }
+
+///|
+test "page locator after comma is not treated as part of the key" {
+  let cites = @moonbibguard.extract_citations(
+    "研究表明 [@smith2024, pp. 12-15]。",
+  )
+  assert_eq(cites.length(), 1)
+  assert_eq(cites[0].key, "smith2024")
+  assert_eq(cites[0].column, 8)
+}
+
+///|
+test "chapter locator and prefix text are ignored" {
+  let cites = @moonbibguard.extract_citations("见 [see @zhang2023, ch. 3]")
+  assert_eq(cites.length(), 1)
+  assert_eq(cites[0].key, "zhang2023")
+}
+
+///|
+test "semicolon separated citations without spaces" {
+  let cites = @moonbibguard.extract_citations("[@a;@b]")
+  assert_eq(cites.length(), 2)
+  assert_eq(cites[0].key, "a")
+  assert_eq(cites[1].key, "b")
+}
+
+///|
+test "each segment may carry its own locator" {
+  let cites = @moonbibguard.extract_citations("[@a, p. 1; @b, pp. 2-3]")
+  assert_eq(cites.length(), 2)
+  assert_eq(cites[0].key, "a")
+  assert_eq(cites[1].key, "b")
+}
+
+///|
+test "bold markers around the key do not leak into it" {
+  let cites = @moonbibguard.extract_citations("[**@strong2025**]")
+  assert_eq(cites[0].key, "strong2025")
+}
+
+///|
+test "nested brackets still yield the inner citation" {
+  let cites = @moonbibguard.extract_citations("[见 [@inner2024]]")
+  assert_eq(cites.length(), 1)
+  assert_eq(cites[0].key, "inner2024")
+}
+
+///|
+test "hyphen prefix for author-in-text citations" {
+  let cites = @moonbibguard.extract_citations(
+    "Smith 也这样认为 [-@smith2024]。",
+  )
+  assert_eq(cites[0].key, "smith2024")
+}

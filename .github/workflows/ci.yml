@@ -91,6 +91,13 @@ jobs:
             exit 1
           fi
 
+      - name: Demo on realistic paper project (expect success)
+        run: |
+          node _build/js/debug/build/cmd/main/main.js examples/paper-project/intro.md examples/paper-project/method.md --config examples/paper-project/.moonbibguard.json
+
+      - name: JSON / SARIF / config conform to schema
+        run: node scripts/check-schema.mjs
+
       - name: One-click demo script
         run: bash scripts/demo.sh
 

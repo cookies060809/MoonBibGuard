@@ -72,8 +72,11 @@ fn print_usage() -> Unit {
   println(
     "  --bib <文件>         显式指定文献库，可一次检查多个 Markdown",
   )
+  println(
+    "  --config <文件>      指定配置文件，默认自动读取 .moonbibguard.json",
+  )
   println("  --json              以 JSON 输出诊断报告")
-  println("  --format <格式>     text（默认）、json 或 github")
+  println("  --format <格式>     text（默认）、json、github 或 sarif")
   println("  -o, --output <文件>  把报告写入文件")
   println("  --strict            警告也视为失败（退出码 1）")
   println("  --quiet             只输出统计行")
@@ -83,6 +86,54 @@ fn print_usage() -> Unit {
   println(
     "退出码：0 无错误；1 存在错误级诊断或 --strict 下的警告；2 参数或文件问题",
   )
+}
+
+///|
+fn slice_str(cs : Array[Char], start : Int32, stop : Int32) -> String {
+  let sb = StringBuilder()
+  let mut i = start
+  while i < stop {
+    sb.write_char(cs[i])
+    i = i + 1
+  }
+  sb.to_string()
+}
+
+///|
+/// Returns the directory part of a path (without the trailing separator).
+fn dir_of(path : String) -> String {
+  let cs = path.to_array()
+  let mut i = cs.length() - 1
+  while i >= 0 {
+    if cs[i] == '/' || cs[i] == '\\' {
+      return slice_str(cs, 0, i)
+    }
+    i = i - 1
+  }
+  ""
+}
+
+///|
+fn is_absolute_path(path : String) -> Bool {
+  let cs = path.to_array()
+  if cs.length() == 0 {
+    return false
+  }
+  if cs[0] == '/' || cs[0] == '\\' {
+    return true
+  }
+  cs.length() >= 2 && cs[1] == ':'
+}
+
+///|
+/// Resolves a path taken from a config file against that file's directory,
+/// so `--config sub/.moonbibguard.json` finds `sub/references.bib`.
+fn resolve_relative(dir : String, path : String) -> String {
+  if dir == "" || is_absolute_path(path) {
+    path
+  } else {
+    "\{dir}/\{path}"
+  }
 }
 
 ///|
@@ -107,19 +158,24 @@ fn main {
   let mut bib_file = ""
   let mut bib_given = false
   let mut format = "text"
+  let mut format_given = false
   let mut quiet = false
   let mut strict = false
+  let mut strict_given = false
   let mut output = ""
+  let mut config_path = ""
   let mut bad_args = false
   let mut i = 0
   while i < args.length() {
     let a = args[i]
     if a == "--json" {
       format = "json"
+      format_given = true
     } else if a == "--quiet" {
       quiet = true
     } else if a == "--strict" {
       strict = true
+      strict_given = true
     } else if a == "-h" || a == "--help" {
       print_usage()
       return
@@ -129,6 +185,13 @@ fn main {
     } else if a == "-o" || a == "--output" {
       if i + 1 < args.length() {
         output = args[i + 1]
+        i = i + 1
+      } else {
+        bad_args = true
+      }
+    } else if a == "--config" {
+      if i + 1 < args.length() {
+        config_path = args[i + 1]
         i = i + 1
       } else {
         bad_args = true
@@ -144,6 +207,7 @@ fn main {
     } else if a == "--format" {
       if i + 1 < args.length() {
         format = args[i + 1]
+        format_given = true
         i = i + 1
       } else {
         bad_args = true
@@ -161,6 +225,36 @@ fn main {
     print_usage()
     js_set_exit_code(2)
     return
+  }
+  // `--config` wins; otherwise `.moonbibguard.json` next to the working
+  // directory is picked up automatically when present.
+  let cfg_file = if config_path != "" {
+    config_path
+  } else {
+    ".moonbibguard.json"
+  }
+  let mut config = @moonbibguard.default_config()
+  if js_exists(cfg_file) {
+    let (loaded, problem) = @moonbibguard.parse_config(js_read(cfg_file))
+    config = loaded
+    match problem {
+      Some(p) => println("配置提示（\{cfg_file}）：\{p}")
+      None => ()
+    }
+  } else if config_path != "" {
+    println("找不到配置文件：\{config_path}")
+    js_set_exit_code(2)
+    return
+  }
+  if !format_given && config.format != "" {
+    format = config.format
+  }
+  if !strict_given && config.strict {
+    strict = true
+  }
+  if !bib_given && config.bib != "" {
+    bib_file = resolve_relative(dir_of(cfg_file), config.bib)
+    bib_given = true
   }
   if !bib_given {
     if md_files.length() == 2 {
@@ -185,8 +279,13 @@ fn main {
     js_set_exit_code(2)
     return
   }
-  if format != "text" && format != "json" && format != "github" {
-    println("未知输出格式：\{format}，可用 text / json / github。")
+  if format != "text" &&
+    format != "json" &&
+    format != "github" &&
+    format != "sarif" {
+    println(
+      "未知输出格式：\{format}，可用 text / json / github / sarif。",
+    )
     js_set_exit_code(2)
     return
   }
@@ -212,13 +311,16 @@ fn main {
   }
   let bib_text = js_read(bib_file)
   let bib_name = @moonbibguard.slash_path(bib_file)
-  let report = @moonbibguard.analyze_docs(docs, bib_text, bib_file=bib_name)
+  let raw_report = @moonbibguard.analyze_docs(docs, bib_text, bib_file=bib_name)
+  let report = @moonbibguard.apply_config(raw_report, config)
   let text = if quiet {
     "检查完成：\{report.error_count} 个错误 · \{report.warning_count} 个警告"
   } else if format == "json" {
     @moonbibguard.to_json(report)
   } else if format == "github" {
     @moonbibguard.to_github(report)
+  } else if format == "sarif" {
+    @moonbibguard.to_sarif(report)
   } else {
     @moonbibguard.format_report(
       report,
